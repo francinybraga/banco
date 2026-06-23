@@ -2,6 +2,8 @@
 // BANCO SYSBANK - Sistema bancário simples (Trabalho SENAI)
 // ============================================================
 
+// Franciny Braga, Gabriel Freitas, Juçara Dassi e Yasmin Kawakame
+
 const lerTeclado = require("readline-sync");
 
 let contasSalvas = [
@@ -76,13 +78,20 @@ function criarContaPF() {
     bonus: 0
   };
 
-  // --- Nome completo ---
-  while (conta.usuario.length <= 1) {
-    conta.usuario = lerTeclado.question("Digite seu nome completo:\n")
-      .toUpperCase()
-      .trim();
-    if (conta.usuario.length <= 1) console.log("Nome inválido.");
+const regexApenasLetras = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
+
+while (true) {
+  conta.usuario = lerTeclado.question("Digite seu nome completo:\n")
+    .trim();
+
+  // Verifica se o nome tem tamanho mínimo e se passa no teste da Regex
+  if (conta.usuario.length > 1 && regexApenasLetras.test(conta.usuario)) {
+    conta.usuario = conta.usuario.toUpperCase();
+    break; // Sai do loop se for válido
+  } else {
+    console.log("Nome inválido. Digite apenas letras (sem números ou caracteres especiais).");
   }
+}
 
   // --- CPF (aceita digitar com ou sem pontuação, formata sozinho) ---
   while (!/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(conta.cpf)) {
