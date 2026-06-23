@@ -14,6 +14,10 @@ let contasSalvas = [
     numConta: "876543",
     saldo: 0,
     tipoConta: "Pessoa Fisica",
+    extrato: [],
+    notificacoes: [],
+    investimentos: 0,
+    bonus: 0
   },
 ];
 
@@ -67,7 +71,9 @@ function criarContaPF() {
     saldo: 0,
     tipoConta: "Pessoa Fisica",
     extrato: [],
-    notificacoes: []
+    notificacoes: [],
+    investimentos: 0,
+    bonus: 0
   };
 
   // --- Nome completo ---
@@ -147,7 +153,9 @@ function criarContaPJ() {
     saldo: 0,
     tipoConta: "Pessoa Juridica",
     extrato: [],
-    notificacoes: []
+    notificacoes: [],
+    investimentos: 0,
+    bonus: 0
   };
 
   // --- Nome fantasia ---
@@ -240,6 +248,8 @@ function depositoInicial(conta) {
   }
 
   conta.saldo += valor;
+  sistemaBonus(conta, valor);
+  addHistorico(conta, "Depósito Inicial", valor);
   console.log(`Depósito inicial de R$ ${valor.toFixed(2)} realizado com sucesso!`,);
 }
 
@@ -250,12 +260,16 @@ function menuConta(contaLogada) {
     ===========================
         Olá, ${contaLogada.usuario} 
         (${contaLogada.tipoConta})
-      O que você quer fazer hoje:
+      Saldo: R$ ${contaLogada.saldo.toFixed(2)}
+      Bônus: R$ ${(contaLogada.bonus || 0).toFixed(2)}
+    ---------------------------
       1 - Depositar
       2 - Sacar
       3 - Extrato
       4 - Transferência
-      5 - Relatório da conta (INFOS)
+      5 - Empréstimo
+      6 - Investimentos
+      7 - Recarga celular
       0 - Sair
 `);
   let opcao = lerTeclado.questionInt(`Digite a opção desejada:\n`);
@@ -277,10 +291,18 @@ function menuConta(contaLogada) {
       tranferencias(contaLogada);
       menuConta(contaLogada);
       break;
-      case 5:
-        gerarInfos(contaLogada)
-        menuConta(contaLogada)
-        break
+    case 5:
+      emprestimo(contaLogada);
+      menuConta(contaLogada);
+      break;
+    case 6:
+      menuInvestimentos(contaLogada);
+      menuConta(contaLogada);
+      break;
+    case 7:
+      recargaCelular(contaLogada);
+      menuConta(contaLogada);
+      break;
     case 0:
       console.log("Finalizando e Saindo... Obrigado por acessar!");
       exibirMenu();
@@ -313,14 +335,6 @@ function acessarConta() {
   exibirMenu();
 }
 
-function registrarMovimentacao(conta, tipo, valor) {
-  conta.extrato.push({
-    tipo: tipo,
-    valor: valor,
-    data: new Date().toLocaleString("pt-BR")
-  });
-}
-
 // ============================================================
 // CONSULTAR SALDO
 // ============================================================
@@ -345,7 +359,7 @@ function depositar(contaLogada) {
   }
 
   contaLogada.saldo += valorDeposito;
-
+  sistemaBonus(contaLogada, valorDeposito);
   addHistorico(contaLogada, "Depósito", valorDeposito);
 
   console.log(
@@ -369,12 +383,12 @@ function sacar(contaLogada) {
 
   if (contaLogada.saldo >= valorSaque) {
     contaLogada.saldo -= valorSaque;
+    addHistorico(contaLogada, "Saque", -valorSaque);
     console.log("Saque realizado com sucesso!");
+    verSaldo(contaLogada);
   } else {
     console.log("Saldo insuficiente");
   }
-  addHistorico(contaLogada, "Saque", -valorSaque);
-  verSaldo(contaLogada);
 }
 
 // ============================================================
@@ -461,15 +475,12 @@ function tranferencias(contaLogada) {
   switch (opcao) {
     case 1:
       realizarPix(origem, destino, valorTransferencia);
-      addHistorico(origem, 'Pix', -valorTransferencia);
       break;
     case 2:
       realizarDoc(origem, destino, valorTransferencia);
-      addHistorico(origem, 'Doc', -valorTransferencia);
       break;
     case 3:
       realizarTed(origem, destino, valorTransferencia);
-      addHistorico(origem, 'Ted', -valorTransferencia);
       break;
     default:
       console.log("Opção inválida");
@@ -480,6 +491,7 @@ function realizarPix(origem, destino, valor) {
   if (validacaoDeSenha(origem)) {
     origem.saldo -= valor;
     destino.saldo += valor;
+    addHistorico(origem, "PIX", -valor);
     console.log("PIX realizado!");
   } else {
     console.log("Transferência cancelada.");
@@ -490,6 +502,7 @@ function realizarDoc(origem, destino, valor) {
   if (validacaoDeSenha(origem)) {
     origem.saldo -= valor;
     destino.saldo += valor;
+    addHistorico(origem, "DOC", -valor);
     setTimeout(() => {
       console.log("DOC concluído!");
     }, 3000);
@@ -502,6 +515,7 @@ function realizarTed(origem, destino, valor) {
   if (validacaoDeSenha(origem)) {
     origem.saldo -= valor;
     destino.saldo += valor;
+    addHistorico(origem, "TED", -valor);
     setTimeout(() => {
       console.log("TED concluído!");
     }, 2000);
@@ -510,14 +524,10 @@ function realizarTed(origem, destino, valor) {
   }
 }
 
-// ======================================
-// HISTÓRICO DE OPERAÇÕES E NOTIFICAÇÕES 
-// ======================================
-// ======================================
-// HISTÓRICO DE OPERAÇÕES E NOTIFICAÇÕES 
-// ======================================
+// ============================================================
+// HISTÓRICO DE OPERAÇÕES
+// ============================================================
 function addHistorico(conta, descricao, valor) {
-  // Formata a data e hora: DD/MM/AAAA HH:mm
   let dataHora = new Date().toLocaleString("pt-BR", {
     day: "2-digit", 
     month: "2-digit", 
@@ -526,7 +536,6 @@ function addHistorico(conta, descricao, valor) {
     minute: "2-digit"
   });
 
-  // Adiciona a movimentação na lista (array) de extrato da conta
   conta.extrato.push({
     tipo: descricao,
     valor: valor,
@@ -548,19 +557,16 @@ function gerarInfos(contaLogada) {
   
   let totalEntradas = 0;
   let totalSaidas = 0;
-  let totalSacadoconta = 0; // Nova variável para somar especificamente os saques
+  let totalSacadoconta = 0;
 
   for (let mov of contaLogada.extrato) {
-    // Se o valor for positivo, é uma entrada (Depósito ou Transferência recebida)
     if (mov.valor > 0) {
       totalEntradas += mov.valor;
     }
     
-    // Se o valor for negativo, é uma saída (Transferência enviada ou Saque)
     if (mov.valor < 0) {
-      totalSaidas += mov.valor; // Aqui já soma TUDO que saiu da conta
+      totalSaidas += mov.valor;
       
-      // Se a descrição contiver a palavra "Saque", somamos também no relatório de saques
       if (mov.tipo.includes("Saque")) {
         totalSacadoconta += mov.valor;
       }
@@ -571,6 +577,202 @@ function gerarInfos(contaLogada) {
   console.log(`Total Sacado (Dinheiro físico): R$ ${Math.abs(totalSacadoconta).toFixed(2)}`);
   console.log(`Total Geral de Saídas (Saques + Envios): R$ ${Math.abs(totalSaidas).toFixed(2)}`);
   console.log("========================================\n");
+}
+
+// ============================================================
+// EMPRÉSTIMO
+// ============================================================
+function emprestimo(conta) {
+  console.log(`
+    1 - Empréstimo pessoal
+    2 - Empréstimo consignado
+    3 - Simulação de empréstimo
+    0 - Voltar`);
+
+  let op = lerTeclado.questionInt("Escolha: ");
+
+  if (op === 1) {
+    let valor = lerTeclado.questionFloat("Valor empréstimo: ");
+    let taxa = 8;
+    let parcelas = lerTeclado.questionInt("Número de parcelas desejadas: ");
+
+    if (valor <= 0) {
+      console.log("Valor inválido.");
+      return;
+    }
+
+    let limiteMaximo = conta.saldo * 5;
+
+    if (valor > limiteMaximo) {
+      console.log(`Você pode solicitar até R$ ${limiteMaximo.toFixed(2)}.`);
+      return;
+    }
+
+    if (parcelas < 1 || parcelas > 48) {
+      console.log("Número de parcelas inválido (1 a 48).");
+      return;
+    }
+
+    console.log(`Total a pagar: R$ ${(valor + (valor * taxa / 100 * parcelas)).toFixed(2)}`);
+    console.log("Deseja confirmar o empréstimo? (S/N)");
+
+    let confirmacao = lerTeclado.question().toUpperCase();
+
+    if (confirmacao === "S") {
+      console.log(`Emprestimo de R$ ${valor.toFixed(2)} aprovado!`);
+      conta.saldo += valor;
+      addHistorico(conta, "Empréstimo Pessoal", valor);
+    } else {
+      console.log("Emprestimo cancelado.");
+    }
+  } else if (op === 2) {
+    let valor = lerTeclado.questionFloat("Valor empréstimo: ");
+    let taxa = 3;
+    let parcelas = lerTeclado.questionInt("Número de parcelas desejadas(max. 48): ");
+    let renda = lerTeclado.questionInt("Informe sua renda mensal: ");
+
+    if (valor <= 0) {
+      console.log("Valor inválido.");
+      return;
+    }
+
+    let limiteMaximo = renda * 0.3;
+
+    if (valor > limiteMaximo) {
+      console.log(`Você pode solicitar até R$ ${limiteMaximo.toFixed(2)}.`);
+      return;
+    }
+
+    if (parcelas < 1 || parcelas > 48) {
+      console.log("Número de parcelas inválido (1 a 48).");
+      return;
+    }
+
+    console.log(`Total a pagar: R$ ${(valor + (valor * taxa / 100 * parcelas)).toFixed(2)}`);
+    console.log("Deseja confirmar o empréstimo? (S/N)");
+
+    let confirmacao = lerTeclado.question().toUpperCase();
+
+    if (confirmacao === "S") {
+      console.log(`Emprestimo de R$ ${valor.toFixed(2)} aprovado!`);
+      conta.saldo += valor;
+      addHistorico(conta, "Empréstimo Consignado", valor);
+    } else {
+      console.log("Emprestimo cancelado.");
+    }
+  } else if (op === 3) {
+    let valor = lerTeclado.questionFloat("Simular emprestimo - Valor: ");
+    let taxa = lerTeclado.questionFloat("Informe a taxa de juros: ");
+    let parcelas = lerTeclado.questionInt("Número de parcelas desejadas(min. 1, max. 48): ");
+
+    let total = valor + (valor * taxa / 100 * parcelas);
+
+    console.log(`Total a pagar simulação: R$ ${total.toFixed(2)}`);
+    console.log(`O valor de cada parcela será de R$ ${(total / parcelas).toFixed(2)}`);
+    console.log(`Fazer simulação de novo? (S/N)`);
+
+    let confirmacao = lerTeclado.question().toUpperCase();
+
+    if (confirmacao === "S") {
+      emprestimo(conta);
+    }
+  }
+}
+
+// ============================================================
+// INVESTIMENTOS
+// ============================================================
+function menuInvestimentos(conta) {
+  console.log(`
+    1 - Renda Fixa
+    2 - Renda Variável
+    3 - Consultar investimentos
+    4 - Resgatar investimentos
+    0 - Voltar
+    `);
+
+  let op = lerTeclado.questionInt("Escolha: ");
+
+  if (op === 1) investimentos(conta, "fixa");
+  if (op === 2) investimentos(conta, "variavel");
+  if (op === 3) consultarInvestimentos(conta);
+  if (op === 4) resgatarInvestimentos(conta);
+}
+
+function investimentos(conta, tipo) {
+  let valor = lerTeclado.questionFloat("Valor a investir: ");
+
+  if (valor > conta.saldo) {
+    console.log("Saldo insuficiente");
+    return;
+  }
+
+  conta.saldo -= valor;
+
+  let rendimento = calcularRendimento(valor, tipo);
+
+  if (!conta.investimentos) conta.investimentos = 0;
+  conta.investimentos += valor;
+
+  console.log(`Rendimento estimado: R$ ${rendimento.toFixed(2)}`);
+  addHistorico(conta, "Investimento", -valor);
+}
+
+function consultarInvestimentos(conta) {
+  if (!conta.investimentos) conta.investimentos = 0;
+  console.log(`Total investido: R$ ${conta.investimentos.toFixed(2)}`);
+}
+
+function calcularRendimento(valor, tipo) {
+  if (tipo === "fixa") return valor * 0.02;
+  return valor * (Math.random() * 0.1);
+}
+
+function resgatarInvestimentos(conta) {
+  if (!conta.investimentos || conta.investimentos <= 0) {
+    console.log("Você não possui investimentos para resgatar.");
+    return;
+  }
+
+  let valor = lerTeclado.questionFloat("Valor a resgatar: ");
+
+  if (valor > conta.investimentos) {
+    console.log("Valor maior que o total investido.");
+    return;
+  }
+
+  conta.investimentos -= valor;
+  conta.saldo += valor;
+
+  console.log(`Resgate realizado com sucesso! R$ ${valor.toFixed(2)} creditado na conta.`);
+  addHistorico(conta, "Resgate de Investimento", valor);
+}
+
+// ============================================================
+// RECARGA DE CELULAR
+// ============================================================
+function recargaCelular(conta) {
+  let valor = lerTeclado.questionFloat("Valor recarga: ");
+  let numeroCelular = lerTeclado.question("Número do celular: ");
+
+  if (valor > conta.saldo) {
+    console.log("Saldo insuficiente");
+  } else {
+    conta.saldo -= valor;
+    console.log("Recarga realizada!");
+    sistemaBonus(conta, valor);
+    addHistorico(conta, "Recarga de Celular", -valor);
+  }
+}
+
+// ============================================================
+// SISTEMA DE BÔNUS (CASHBACK)
+// ============================================================
+function sistemaBonus(conta, valor) {
+  if (!conta.bonus) conta.bonus = 0;
+  let cashback = valor * 0.5 / 100;
+  console.log(`Você recebeu R$ ${cashback.toFixed(2)} de cashback!`);
+  conta.bonus += cashback;
 }
 
 exibirMenu();
