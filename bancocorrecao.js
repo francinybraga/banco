@@ -66,6 +66,8 @@ function criarContaPF() {
     numConta: null,
     saldo: 0,
     tipoConta: "Pessoa Fisica",
+    extrato: [],
+    notificacoes: []
   };
 
   // --- Nome completo ---
@@ -144,7 +146,8 @@ function criarContaPJ() {
     numConta: null,
     saldo: 0,
     tipoConta: "Pessoa Juridica",
-    extrato: []
+    extrato: [],
+    notificacoes: []
   };
 
   // --- Nome fantasia ---
@@ -252,6 +255,7 @@ function menuConta(contaLogada) {
       2 - Sacar
       3 - Extrato
       4 - Transferência
+      5 - Relatório da conta (INFOS)
       0 - Sair
 `);
   let opcao = lerTeclado.questionInt(`Digite a opção desejada:\n`);
@@ -273,6 +277,10 @@ function menuConta(contaLogada) {
       tranferencias(contaLogada);
       menuConta(contaLogada);
       break;
+      case 5:
+        gerarInfos(contaLogada)
+        menuConta(contaLogada)
+        break
     case 0:
       console.log("Finalizando e Saindo... Obrigado por acessar!");
       exibirMenu();
@@ -338,7 +346,7 @@ function depositar(contaLogada) {
 
   contaLogada.saldo += valorDeposito;
 
-  registrarMovimentacao(contaLogada, "Depósito", valorDeposito);
+  addHistorico(contaLogada, "Depósito", valorDeposito);
 
   console.log(
     `Depósito de R$ ${valorDeposito.toFixed(2)} realizado com sucesso!`,
@@ -365,7 +373,7 @@ function sacar(contaLogada) {
   } else {
     console.log("Saldo insuficiente");
   }
-  registrarMovimentacao(contaLogada, "Saque", valorSaque);
+  addHistorico(contaLogada, "Saque", -valorSaque);
   verSaldo(contaLogada);
 }
 
@@ -453,15 +461,15 @@ function tranferencias(contaLogada) {
   switch (opcao) {
     case 1:
       realizarPix(origem, destino, valorTransferencia);
-      registrarMovimentacao(conta, 'Pix', valor)
+      addHistorico(origem, 'Pix', -valorTransferencia);
       break;
     case 2:
       realizarDoc(origem, destino, valorTransferencia);
-      registrarMovimentacao(conta, 'Doc', valor)
+      addHistorico(origem, 'Doc', -valorTransferencia);
       break;
     case 3:
       realizarTed(origem, destino, valorTransferencia);
-      registrarMovimentacao(conta, 'Ted', valor)
+      addHistorico(origem, 'Ted', -valorTransferencia);
       break;
     default:
       console.log("Opção inválida");
@@ -500,6 +508,69 @@ function realizarTed(origem, destino, valor) {
   } else {
     console.log("Transferência cancelada.");
   }
+}
+
+// ======================================
+// HISTÓRICO DE OPERAÇÕES E NOTIFICAÇÕES 
+// ======================================
+// ======================================
+// HISTÓRICO DE OPERAÇÕES E NOTIFICAÇÕES 
+// ======================================
+function addHistorico(conta, descricao, valor) {
+  // Formata a data e hora: DD/MM/AAAA HH:mm
+  let dataHora = new Date().toLocaleString("pt-BR", {
+    day: "2-digit", 
+    month: "2-digit", 
+    year: "numeric",
+    hour: "2-digit", 
+    minute: "2-digit"
+  });
+
+  // Adiciona a movimentação na lista (array) de extrato da conta
+  conta.extrato.push({
+    tipo: descricao,
+    valor: valor,
+    data: dataHora
+  });
+}
+
+function enviarNotificacao(conta, mensagem){
+  conta.notificacoes.push(mensagem);
+  console.log(`\n NOTIFICAÇÃO: ${mensagem}`);
+}
+
+function gerarInfos(contaLogada) {
+  console.log("\n========== RELATÓRIO DA CONTA ==========");
+  console.log(`Cliente: ${contaLogada.usuario}`);
+  console.log(`Tipo de Conta: ${contaLogada.tipoConta}`);
+  console.log(`Email cadastrado: ${contaLogada.email}`);
+  console.log(`Total de operações realizadas: ${contaLogada.extrato.length}`);
+  
+  let totalEntradas = 0;
+  let totalSaidas = 0;
+  let totalSacadoconta = 0; // Nova variável para somar especificamente os saques
+
+  for (let mov of contaLogada.extrato) {
+    // Se o valor for positivo, é uma entrada (Depósito ou Transferência recebida)
+    if (mov.valor > 0) {
+      totalEntradas += mov.valor;
+    }
+    
+    // Se o valor for negativo, é uma saída (Transferência enviada ou Saque)
+    if (mov.valor < 0) {
+      totalSaidas += mov.valor; // Aqui já soma TUDO que saiu da conta
+      
+      // Se a descrição contiver a palavra "Saque", somamos também no relatório de saques
+      if (mov.tipo.includes("Saque")) {
+        totalSacadoconta += mov.valor;
+      }
+    }
+  }
+
+  console.log(`Total de Entradas: R$ ${totalEntradas.toFixed(2)}`);
+  console.log(`Total Sacado (Dinheiro físico): R$ ${Math.abs(totalSacadoconta).toFixed(2)}`);
+  console.log(`Total Geral de Saídas (Saques + Envios): R$ ${Math.abs(totalSaidas).toFixed(2)}`);
+  console.log("========================================\n");
 }
 
 exibirMenu();
