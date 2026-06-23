@@ -230,7 +230,7 @@ function numeroConta() {
 
 function depositoInicial(conta) {
   let valor = lerTeclado.questionFloat("Digite o valor do depósito inicial (mínimo R$100): ",);
-
+  
   while (valor < 100) {
     console.log("Valor inválido. O depósito mínimo é R$100,00.");
     valor = lerTeclado.questionFloat("Digite o valor novamente: ");
@@ -453,12 +453,15 @@ function tranferencias(contaLogada) {
   switch (opcao) {
     case 1:
       realizarPix(origem, destino, valorTransferencia);
+      registrarMovimentacao(conta, 'Pix', valor)
       break;
     case 2:
       realizarDoc(origem, destino, valorTransferencia);
+      registrarMovimentacao(conta, 'Doc', valor)
       break;
     case 3:
       realizarTed(origem, destino, valorTransferencia);
+      registrarMovimentacao(conta, 'Ted', valor)
       break;
     default:
       console.log("Opção inválida");
