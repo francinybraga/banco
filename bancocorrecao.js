@@ -144,6 +144,7 @@ function criarContaPJ() {
     numConta: null,
     saldo: 0,
     tipoConta: "Pessoa Juridica",
+    extrato: []
   };
 
   // --- Nome fantasia ---
@@ -304,6 +305,14 @@ function acessarConta() {
   exibirMenu();
 }
 
+function registrarMovimentacao(conta, tipo, valor) {
+  conta.extrato.push({
+    tipo: tipo,
+    valor: valor,
+    data: new Date().toLocaleString("pt-BR")
+  });
+}
+
 // ============================================================
 // CONSULTAR SALDO
 // ============================================================
@@ -328,6 +337,9 @@ function depositar(contaLogada) {
   }
 
   contaLogada.saldo += valorDeposito;
+
+  registrarMovimentacao(contaLogada, "Depósito", valorDeposito);
+
   console.log(
     `Depósito de R$ ${valorDeposito.toFixed(2)} realizado com sucesso!`,
   );
@@ -350,22 +362,41 @@ function sacar(contaLogada) {
   if (contaLogada.saldo >= valorSaque) {
     contaLogada.saldo -= valorSaque;
     console.log("Saque realizado com sucesso!");
-    verSaldo(contaLogada);
   } else {
     console.log("Saldo insuficiente");
   }
+  registrarMovimentacao(contaLogada, "Saque", valorSaque);
+  verSaldo(contaLogada);
 }
 
 // ============================================================
 // EXTRATO
 // ============================================================
+// function extrato(contaLogada) {
+//   const hoje = new Date();
+//   console.log("\n==============================");
+//   console.log(`EXTRATO - Data: ${hoje.toLocaleDateString("pt-BR")}`);
+//   console.log("==============================");
+//   verSaldo(contaLogada);
+//   console.log("==============================\n");
+// }
+
 function extrato(contaLogada) {
-  const hoje = new Date();
-  console.log("\n==============================");
-  console.log(`EXTRATO - Data: ${hoje.toLocaleDateString("pt-BR")}`);
-  console.log("==============================");
-  verSaldo(contaLogada);
-  console.log("==============================\n");
+  console.log("\n========== EXTRATO ==========");
+
+  if (contaLogada.extrato.length === 0) {
+    console.log("Nenhuma movimentação encontrada.");
+  } else {
+    for (let movimentacao of contaLogada.extrato) {
+      console.log(
+        `${movimentacao.data} | ${movimentacao.tipo} | R$ ${movimentacao.valor.toFixed(2)}`
+      );
+    }
+  }
+
+  console.log("-----------------------------");
+  console.log(`Saldo: R$ ${contaLogada.saldo.toFixed(2)}`);
+  console.log("=============================\n");
 }
 
 function validacaoDeSenha(contaOrigem) {
